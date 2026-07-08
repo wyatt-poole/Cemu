@@ -13,7 +13,7 @@ class NativeInputDeviceListener(private val context: Context) {
 
     private fun refreshControllers() {
         val gameControllerInfos = listGameControllers()
-            .map { it.toControllerInfo() }
+            .map { it.toControllerInfo(context) }
             .toTypedArray()
 
         NativeInput.setControllers(gameControllerInfos)

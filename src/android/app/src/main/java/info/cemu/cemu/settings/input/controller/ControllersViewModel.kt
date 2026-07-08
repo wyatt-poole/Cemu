@@ -1,5 +1,6 @@
 package info.cemu.cemu.settings.input.controller
 
+import android.content.Context
 import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
@@ -72,7 +73,7 @@ class ControllersViewModel(val controllerIndex: Int) : ViewModel() {
         _controls.value += getControllerMapping(buttonId)
     }
 
-    fun refreshAvailableControllers(): Boolean {
+    fun refreshAvailableControllers(context: Context): Boolean {
         val gameControllers = listGameControllers()
 
         val inputControllers = gameControllers.map {
@@ -80,14 +81,14 @@ class ControllersViewModel(val controllerIndex: Int) : ViewModel() {
                 id = it.id,
                 name = it.name,
                 descriptor = it.descriptor,
-                hasMotion = it.hasMotion(),
-                hasRumble = it.hasRumble(),
+                hasMotion = it.hasMotion(context),
+                hasRumble = it.hasRumble(context),
             )
         }
         setActiveController(inputControllers.firstOrNull())
         _controllers.value = inputControllers
 
-        NativeInput.setControllers(gameControllers.map { it.toControllerInfo() }.toTypedArray())
+        NativeInput.setControllers(gameControllers.map { it.toControllerInfo(context) }.toTypedArray())
 
         return gameControllers.isNotEmpty()
     }

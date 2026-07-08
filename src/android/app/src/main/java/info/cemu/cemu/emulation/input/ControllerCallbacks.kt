@@ -41,7 +41,7 @@ class ControllerCallbacks(private val context: Context) : NativeInput.Controller
         descriptor: String, milliseconds: Long, amplitude: Int
     ) {
         synchronized(inputs) {
-            inputs[descriptor]?.tryUseVibrator {
+            inputs[descriptor]?.tryUseVibrator(context) {
                 vibrate(
                     VibrationEffect.createOneShot(
                         milliseconds, amplitude.coerceIn(1, 255)
@@ -53,7 +53,7 @@ class ControllerCallbacks(private val context: Context) : NativeInput.Controller
 
     override fun cancelControllerVibration(descriptor: String) {
         synchronized(inputs) {
-            inputs[descriptor]?.tryUseVibrator { cancel() }
+            inputs[descriptor]?.tryUseVibrator(context) { cancel() }
         }
     }
 }

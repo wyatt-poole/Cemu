@@ -55,6 +55,7 @@ import androidx.compose.ui.window.Popup
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
 import info.cemu.cemu.R
+import androidx.compose.ui.platform.LocalContext
 import info.cemu.cemu.common.android.inputdevice.tryUseVibrator
 import info.cemu.cemu.common.input.GamepadInputSource
 import info.cemu.cemu.common.ui.components.Header
@@ -107,8 +108,10 @@ fun ControllerInputSettingsScreen(
         viewModel.clearButtonMapping(buttonId)
     }
 
+    val context = LocalContext.current
+
     fun refreshControllers(onControllersAvailable: () -> Unit) {
-        if (viewModel.refreshAvailableControllers()) {
+        if (viewModel.refreshAvailableControllers(context)) {
             onControllersAvailable()
         } else {
             snackbarHostState.showMessage(coroutineScope, tr("No controllers available"))
@@ -234,7 +237,7 @@ private fun ControllerSettingsDialog(
     onSetControllerSettings: (InputController, NativeInput.ControllerSettings) -> Unit,
     controllers: List<InputController>,
 ) {
-
+    val dialogContext = LocalContext.current
 
     fun updateSettings(settings: NativeInput.ControllerSettings) {
         val (controller, _) = activeController ?: return
@@ -312,7 +315,7 @@ private fun ControllerSettingsDialog(
                         updateSettings(settings.copy(rumble = rumble))
 
                         val amplitude = (255 * rumble).toInt()
-                        InputDevice.getDevice(controller.id)?.tryUseVibrator {
+                        InputDevice.getDevice(controller.id)?.tryUseVibrator(dialogContext) {
                             cancel()
                             if (amplitude in 1..255) {
                                 vibrate(VibrationEffect.createOneShot(500L, amplitude))

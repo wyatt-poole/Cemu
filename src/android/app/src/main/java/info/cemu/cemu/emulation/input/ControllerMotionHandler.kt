@@ -8,6 +8,7 @@ import android.hardware.SensorManager
 import android.hardware.input.InputManager
 import android.os.Build
 import android.view.InputDevice
+import android.view.Surface
 import info.cemu.cemu.common.android.inputdevice.findMotionSensorDevice
 import info.cemu.cemu.common.android.inputdevice.listGameControllers
 import info.cemu.cemu.common.input.InputDeviceListener
@@ -30,6 +31,9 @@ class ControllerMotionHandler(private val context: Context) {
         private val sensorManager: SensorManager?
         private val accelerometer: Sensor?
         private val gyroscope: Sensor?
+        // Integrated controllers of handheld devices use the device motion
+        // sensors, whose axes depend on the current display rotation
+        private val usesDeviceSensors: Boolean
 
         init {
             val sensorDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -40,13 +44,51 @@ class ControllerMotionHandler(private val context: Context) {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sensorDevice != null) {
                 sensorManager = sensorDevice.sensorManager
-                accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-                gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+                usesDeviceSensors = false
+            } else if (!inputDevice.isExternal) {
+                sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager?
+                usesDeviceSensors = true
             } else {
                 sensorManager = null
-                accelerometer = null
-                gyroscope = null
+                usesDeviceSensors = false
             }
+
+            accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            gyroscope = sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+        }
+
+        private fun getSensorEventValues(values: FloatArray): FloatArray {
+            if (!usesDeviceSensors) {
+                return values.clone()
+            }
+
+            val rotation = runCatching { context.display?.rotation }.getOrNull() ?: Surface.ROTATION_0
+            val x: Float
+            val y: Float
+
+            when (rotation) {
+                Surface.ROTATION_0 -> {
+                    x = values[0]
+                    y = values[1]
+                }
+
+                Surface.ROTATION_90 -> {
+                    x = -values[1]
+                    y = values[0]
+                }
+
+                Surface.ROTATION_180 -> {
+                    x = -values[0]
+                    y = -values[1]
+                }
+
+                else /*Surface.ROTATION_270*/ -> {
+                    x = values[1]
+                    y = -values[0]
+                }
+            }
+
+            return floatArrayOf(x, y, values[2])
         }
 
         fun register() {
@@ -85,10 +127,10 @@ class ControllerMotionHandler(private val context: Context) {
             val values = event.values
 
             if (event.sensor.type == Sensor.TYPE_GYROSCOPE) {
-                gyroValues = values.clone()
+                gyroValues = getSensorEventValues(values)
                 hasGyroData = true
             } else if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-                accelValues = values.clone()
+                accelValues = getSensorEventValues(values)
                 hasAccelData = true
             }
 
