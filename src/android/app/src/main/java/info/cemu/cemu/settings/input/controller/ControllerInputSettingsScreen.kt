@@ -279,8 +279,12 @@ private fun ControllerSettingsDialog(
 
                 val (controller, settings) = activeController ?: return@Column
 
-                val canUseMotion =
-                    controllerType == EmulatedControllerType.VPAD && controller.hasMotion
+                val controllerTypeSupportsMotion =
+                    controllerType == EmulatedControllerType.VPAD
+                            || controllerType == EmulatedControllerType.PRO
+                            || controllerType == EmulatedControllerType.WIIMOTE
+
+                val canUseMotion = controllerTypeSupportsMotion && controller.hasMotion
 
                 Toggle(
                     label = tr("Use motion"),
@@ -288,7 +292,7 @@ private fun ControllerSettingsDialog(
                     onCheckedChanged = { updateSettings(settings.copy(motion = it)) },
                     enabled = canUseMotion,
                     description = when {
-                        controllerType != EmulatedControllerType.VPAD -> tr("Requires Wii U GamePad")
+                        !controllerTypeSupportsMotion -> tr("Requires Wii U GamePad, Wii U Pro Controller or Wiimote")
                         !controller.hasMotion -> tr("Controller has no motion sensors")
                         else -> null
                     },

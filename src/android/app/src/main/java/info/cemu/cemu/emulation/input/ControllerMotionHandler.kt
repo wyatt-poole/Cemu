@@ -8,6 +8,7 @@ import android.hardware.SensorManager
 import android.hardware.input.InputManager
 import android.os.Build
 import android.view.InputDevice
+import info.cemu.cemu.common.android.inputdevice.findMotionSensorDevice
 import info.cemu.cemu.common.android.inputdevice.listGameControllers
 import info.cemu.cemu.common.input.InputDeviceListener
 import info.cemu.cemu.nativeinterface.NativeInput
@@ -31,8 +32,14 @@ class ControllerMotionHandler(private val context: Context) {
         private val gyroscope: Sensor?
 
         init {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                sensorManager = inputDevice.sensorManager
+            val sensorDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                inputDevice.findMotionSensorDevice()
+            } else {
+                null
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sensorDevice != null) {
+                sensorManager = sensorDevice.sensorManager
                 accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
                 gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
             } else {
@@ -78,10 +85,10 @@ class ControllerMotionHandler(private val context: Context) {
             val values = event.values
 
             if (event.sensor.type == Sensor.TYPE_GYROSCOPE) {
-                gyroValues = values
+                gyroValues = values.clone()
                 hasGyroData = true
             } else if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-                accelValues = values
+                accelValues = values.clone()
                 hasAccelData = true
             }
 

@@ -60,7 +60,12 @@ fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
             }
         )
 
-        if (deviceControllerType != NativeInput.EmulatedControllerType.VPAD) {
+        val deviceControllerTypeSupportsMotion =
+            deviceControllerType == NativeInput.EmulatedControllerType.VPAD
+                    || deviceControllerType == NativeInput.EmulatedControllerType.PRO
+                    || deviceControllerType == NativeInput.EmulatedControllerType.WIIMOTE
+
+        if (!deviceControllerTypeSupportsMotion) {
             Row(
                 modifier = Modifier.padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -73,7 +78,7 @@ fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = tr("To use motion input, the controller type must be set to Wii U GamePad"),
+                    text = tr("To use motion input, the controller type must be set to Wii U GamePad, Wii U Pro Controller or Wiimote"),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }

@@ -22,7 +22,8 @@ bool DeviceController::has_rumble()
 
 bool DeviceController::has_motion()
 {
-	return true;
+	std::scoped_lock lock{s_mutex};
+	return s_has_motion;
 }
 
 MotionSample DeviceController::get_motion_sample()
