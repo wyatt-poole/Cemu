@@ -23,7 +23,7 @@ bool AndroidController::has_rumble()
 
 void AndroidController::start_rumble()
 {
-	if (is_connected() && !has_rumble())
+	if (!is_connected() || !has_rumble())
 	{
 		return;
 	}
@@ -41,7 +41,7 @@ void AndroidController::start_rumble()
 
 void AndroidController::stop_rumble()
 {
-	if (is_connected() && !has_rumble())
+	if (!has_rumble())
 	{
 		return;
 	}

@@ -87,4 +87,4 @@ jobs:
           tar xvzf ghr.tar.gz; rm ghr.tar.gz
           echo "[INFO] Release tag: v${{ env.CEMU_VERSION }}"
           RELEASE_BODY=$(printf "Experimental release %s" "${{ env.CEMU_VERSION }}")
-          ghr_v0.15.0_linux_amd64/ghr -b "$RELEASE_BODY" -t ${{ secrets.GITHUB_TOKEN }} -n "Cemu ${{ env.CEMU_VERSION }}" "${{ env.CEMU_VERSION }}" ./upload
+          ghr_v0.15.0_linux_amd64/ghr -b "$RELEASE_BODY" -t ${{ secrets.GITHUB_TOKEN }} -c "${{ github.sha }}" -n "Cemu ${{ env.CEMU_VERSION }}" "${{ env.CEMU_VERSION }}" ./upload

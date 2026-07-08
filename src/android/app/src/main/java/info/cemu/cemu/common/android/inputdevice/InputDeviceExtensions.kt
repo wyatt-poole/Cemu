@@ -34,15 +34,32 @@ fun listGameControllers() = InputDevice.getDeviceIds()
     .filter { it.isGameController() }
 
 fun InputDevice.hasRumble(): Boolean {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        return vibratorManager.vibratorIds.isNotEmpty()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && vibratorManager.vibratorIds.isNotEmpty()) {
+        return true
     }
 
-    return false
+    // Some controllers (mostly Bluetooth ones) only expose their rumble
+    // through the legacy input device vibrator
+    @Suppress("DEPRECATION")
+    return vibrator.hasVibrator()
 }
 
-fun InputDevice.hasMotion() =
-    hasSensor(Sensor.TYPE_ACCELEROMETER) && hasSensor(Sensor.TYPE_GYROSCOPE)
+// Motion sensors of external (e.g. Bluetooth) controllers may be exposed through
+// a sibling input device that shares the descriptor of the game controller device
+fun InputDevice.findMotionSensorDevice(): InputDevice? {
+    if (hasSensor(Sensor.TYPE_ACCELEROMETER) && hasSensor(Sensor.TYPE_GYROSCOPE)) {
+        return this
+    }
+
+    return InputDevice.getDeviceIds()
+        .mapNotNull { InputDevice.getDevice(it) }
+        .firstOrNull {
+            it.id != id && it.descriptor == descriptor
+                    && it.hasSensor(Sensor.TYPE_ACCELEROMETER) && it.hasSensor(Sensor.TYPE_GYROSCOPE)
+        }
+}
+
+fun InputDevice.hasMotion() = findMotionSensorDevice() != null
 
 fun InputDevice.hasSensor(type: Int) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
     sensorManager.getDefaultSensor(type) != null
@@ -51,7 +68,7 @@ fun InputDevice.hasSensor(type: Int) = if (Build.VERSION.SDK_INT >= Build.VERSIO
 }
 
 fun InputDevice.tryUseVibrator(block: Vibrator.() -> Unit) {
-    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && vibratorManager.vibratorIds.isNotEmpty()) {
         vibratorManager.defaultVibrator
     } else {
         @Suppress("DEPRECATION")

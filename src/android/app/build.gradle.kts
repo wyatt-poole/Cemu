@@ -45,7 +45,7 @@ android {
     compileSdk = 36
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        applicationId = "info.cemu.cemu"
+        applicationId = "info.cemu.cemu.motion"
         minSdk = 30
         targetSdk = 35
         versionName = getVersionName()
