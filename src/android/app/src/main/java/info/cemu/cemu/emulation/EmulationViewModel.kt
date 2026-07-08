@@ -90,7 +90,12 @@ class EmulationViewModel(
     init {
         viewModelScope.launch {
             val settings = dataStore.data.first()
-            _sideMenuState.update { it.copy(isInputOverlayVisible = settings.inputOverlaySettings.isOverlayEnabled) }
+            _sideMenuState.update {
+                it.copy(
+                    isInputOverlayVisible = settings.inputOverlaySettings.isOverlayEnabled,
+                    isMotionEnabled = settings.emulationSettings.isMotionEnabled,
+                )
+            }
         }
     }
 
@@ -123,7 +128,19 @@ class EmulationViewModel(
     }
 
     fun updateSideMenuState(sideMenuState: SideMenuState) {
+        val previousSideMenuState = _sideMenuState.value
         _sideMenuState.value = sideMenuState
+
+        if (previousSideMenuState.isMotionEnabled != sideMenuState.isMotionEnabled) {
+            viewModelScope.launch {
+                dataStore.updateData {
+                    val emulationSettings =
+                        it.emulationSettings.copy(isMotionEnabled = sideMenuState.isMotionEnabled)
+
+                    it.copy(emulationSettings = emulationSettings)
+                }
+            }
+        }
     }
 
     val gamePadPosition = dataStore.data.map { it.emulationSettings.gamePadPosition }

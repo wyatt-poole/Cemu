@@ -126,6 +126,10 @@ fun EmulationScreen(
         setInputListeningEnabled(drawerState.isClosed)
     }
 
+    LaunchedEffect(sideMenuState.isMotionEnabled) {
+        setMotionSensorEnabled(sideMenuState.isMotionEnabled)
+    }
+
     LaunchedEffect(Unit) {
         HotkeyManager.actions.collect { action ->
             when (action) {
@@ -151,7 +155,6 @@ fun EmulationScreen(
                         sideMenuState = sideMenuState,
                         updateState = {
                             viewModel.updateSideMenuState(it)
-                            setMotionSensorEnabled(it.isMotionEnabled)
                             NativeEmulation.setReplaceTVWithPadView(it.isTVReplacedWithPad)
                             closeDrawer()
                         },
