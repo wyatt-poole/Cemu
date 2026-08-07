@@ -282,9 +282,11 @@ private fun ControllerSettingsDialog(
 
                 val (controller, settings) = activeController ?: return@Column
 
+                // The Wii U Pro Controller has no motion sensors, and its status
+                // structures carry no motion fields, so games cannot receive
+                // motion for that type
                 val controllerTypeSupportsMotion =
                     controllerType == EmulatedControllerType.VPAD
-                            || controllerType == EmulatedControllerType.PRO
                             || controllerType == EmulatedControllerType.WIIMOTE
 
                 val canUseMotion = controllerTypeSupportsMotion && controller.hasMotion
@@ -295,7 +297,7 @@ private fun ControllerSettingsDialog(
                     onCheckedChanged = { updateSettings(settings.copy(motion = it)) },
                     enabled = canUseMotion,
                     description = when {
-                        !controllerTypeSupportsMotion -> tr("Requires Wii U GamePad, Wii U Pro Controller or Wiimote")
+                        !controllerTypeSupportsMotion -> tr("Requires Wii U GamePad or Wiimote")
                         !controller.hasMotion -> tr("Controller has no motion sensors")
                         else -> null
                     },

@@ -89,39 +89,34 @@ namespace NativeInput
 		touchInfo.left_down = touchInfo.left_down_toggle = status;
 	}
 
-	ControllerPtr FindDeviceController(const EmulatedControllerPtr& emulatedController)
+	std::pair<EmulatedControllerPtr, ControllerPtr> GetDeviceControllerPair()
 	{
-		if (!emulatedController)
-		{
-			return nullptr;
-		}
-
-		for (const auto& controller : emulatedController->get_controllers())
-		{
-			if (controller->api() == InputAPI::Device)
-			{
-				return controller;
-			}
-		}
-
-		return nullptr;
-	}
-
-	std::vector<std::pair<size_t, ControllerPtr>> GetDeviceControllers()
-	{
-		std::vector<std::pair<size_t, ControllerPtr>> deviceControllers;
-
 		for (size_t i = 0; i < InputManager::kMaxController; ++i)
 		{
 			auto emulatedController = InputManager::instance().get_controller(i);
 
-			if (auto controller = FindDeviceController(emulatedController))
+			if (!emulatedController)
 			{
-				deviceControllers.emplace_back(i, controller);
+				continue;
+			}
+
+			for (const auto& controller : emulatedController->get_controllers())
+			{
+				if (controller->api() == InputAPI::Device)
+				{
+					return {emulatedController, controller};
+				}
 			}
 		}
 
-		return deviceControllers;
+		if (auto emulatedController = InputManager::instance().get_controller(0))
+		{
+			auto controller = CreateDefaultDeviceController();
+			emulatedController->add_controller(controller);
+			return {emulatedController, controller};
+		}
+
+		return {nullptr, nullptr};
 	}
 
 	std::shared_ptr<ControllerBase> GetControllerForEmulatedController(uint32 index, std::string_view uuid, std::string_view name)
@@ -461,7 +456,9 @@ Java_info_cemu_cemu_nativeinterface_NativeInput_getMotionEnabledControllerDescri
 extern "C" [[maybe_unused]] JNIEXPORT void JNICALL
 Java_info_cemu_cemu_nativeinterface_NativeInput_setDeviceRumble([[maybe_unused]] JNIEnv* env, [[maybe_unused]] jclass clazz, jfloat rumble)
 {
-	for (const auto& [index, controller] : NativeInput::GetDeviceControllers())
+	auto [emulatedController, controller] = NativeInput::GetDeviceControllerPair();
+
+	if (controller)
 	{
 		controller->set_rumble(rumble);
 	}
@@ -470,62 +467,47 @@ Java_info_cemu_cemu_nativeinterface_NativeInput_setDeviceRumble([[maybe_unused]]
 extern "C" [[maybe_unused]] JNIEXPORT jfloat JNICALL
 Java_info_cemu_cemu_nativeinterface_NativeInput_getDeviceRumble([[maybe_unused]] JNIEnv* env, [[maybe_unused]] jclass clazz)
 {
-	auto deviceControllers = NativeInput::GetDeviceControllers();
+	auto [emulatedController, controller] = NativeInput::GetDeviceControllerPair();
 
-	if (!deviceControllers.empty())
+	if (controller)
 	{
-		return deviceControllers.front().second->get_settings().rumble;
+		return controller->get_settings().rumble;
 	}
 
 	return 0.0f;
 }
 
-extern "C" [[maybe_unused]] JNIEXPORT jintArray JNICALL
-Java_info_cemu_cemu_nativeinterface_NativeInput_getDeviceControllerIndices(JNIEnv* env, [[maybe_unused]] jclass clazz)
+extern "C" [[maybe_unused]] JNIEXPORT jint JNICALL
+Java_info_cemu_cemu_nativeinterface_NativeInput_getDeviceControllerIndex([[maybe_unused]] JNIEnv* env, [[maybe_unused]] jclass clazz)
 {
-	std::vector<jint> indices;
+	auto [emulatedController, controller] = NativeInput::GetDeviceControllerPair();
 
-	for (const auto& [index, controller] : NativeInput::GetDeviceControllers())
+	if (emulatedController)
 	{
-		indices.push_back(static_cast<jint>(index));
+		return static_cast<jint>(emulatedController->player_index());
 	}
 
-	jintArray result = env->NewIntArray(static_cast<jsize>(indices.size()));
-	if (!indices.empty())
-	{
-		env->SetIntArrayRegion(result, 0, static_cast<jsize>(indices.size()), indices.data());
-	}
-	return result;
+	return 0;
 }
 
 extern "C" [[maybe_unused]] JNIEXPORT void JNICALL
-Java_info_cemu_cemu_nativeinterface_NativeInput_setDeviceControllerEnabled([[maybe_unused]] JNIEnv* env, [[maybe_unused]] jclass clazz, jint index, jboolean enabled)
+Java_info_cemu_cemu_nativeinterface_NativeInput_setDeviceControllerIndex([[maybe_unused]] JNIEnv* env, [[maybe_unused]] jclass clazz, jint index)
 {
-	auto emulatedController = InputManager::instance().get_controller(index);
+	auto [emulatedController, controller] = NativeInput::GetDeviceControllerPair();
 
-	if (!emulatedController)
+	if (controller && emulatedController)
 	{
-		return;
+		emulatedController->remove_controller(controller);
 	}
 
-	auto existingController = NativeInput::FindDeviceController(emulatedController);
-
-	if (enabled && !existingController)
+	if (!controller)
 	{
-		auto controller = CreateDefaultDeviceController();
-
-		// keep rumble/motion settings consistent across all ports the device is bound to
-		auto deviceControllers = NativeInput::GetDeviceControllers();
-		if (!deviceControllers.empty())
-		{
-			controller->set_settings(deviceControllers.front().second->get_settings());
-		}
-
-		emulatedController->add_controller(controller);
+		controller = CreateDefaultDeviceController();
 	}
-	else if (!enabled && existingController)
+
+	if (auto newEmulated = InputManager::instance().get_controller(index))
 	{
-		emulatedController->remove_controller(existingController);
+		newEmulated->add_controller(controller);
 	}
 }
 

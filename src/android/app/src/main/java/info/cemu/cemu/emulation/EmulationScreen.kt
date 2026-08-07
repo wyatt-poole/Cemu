@@ -59,6 +59,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
 import info.cemu.cemu.R
@@ -464,9 +467,39 @@ private fun EmulationSurfaces(
         )
     }
 
-    DisposableEffect(activity, padDisplay, usePadPresentation, sideMenuState.isExternalScreenRotatedLeft) {
+    // The composition survives the activity being stopped, so without following
+    // the lifecycle the presentation would keep showing a frozen frame on the
+    // external display after leaving the app, and would not be recreated (and
+    // so stay dead) when coming back
+    val lifecycleOwner = activity as? LifecycleOwner
+    var isActivityStarted by remember(lifecycleOwner) {
+        mutableStateOf(
+            lifecycleOwner?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) != false
+        )
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val owner = lifecycleOwner ?: return@DisposableEffect onDispose {}
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> isActivityStarted = true
+                Lifecycle.Event.ON_STOP -> isActivityStarted = false
+                else -> {}
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+
+    DisposableEffect(
+        activity,
+        padDisplay,
+        usePadPresentation,
+        isActivityStarted,
+        sideMenuState.isExternalScreenRotatedLeft,
+    ) {
         val activityNonNull = activity ?: return@DisposableEffect onDispose {}
-        if (!usePadPresentation) {
+        if (!usePadPresentation || !isActivityStarted) {
             return@DisposableEffect onDispose {}
         }
         val padDisplayNonNull = padDisplay

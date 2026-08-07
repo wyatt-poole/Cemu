@@ -12,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -25,18 +25,19 @@ import info.cemu.cemu.R
 import info.cemu.cemu.common.android.context.getDeviceVibrator
 import info.cemu.cemu.common.settings.AppSettingsStore
 import info.cemu.cemu.common.ui.components.ScreenContent
+import info.cemu.cemu.common.ui.components.SingleSelection
 import info.cemu.cemu.common.ui.components.Slider
 import info.cemu.cemu.common.ui.components.Toggle
-import info.cemu.cemu.common.ui.localization.controllerTypeToString
 import info.cemu.cemu.common.ui.localization.tr
 import info.cemu.cemu.nativeinterface.NativeInput
 import kotlinx.coroutines.launch
 
 private val ControllerIndexChoices = (0..<NativeInput.MAX_CONTROLLERS).toList()
 
+// The Wii U Pro Controller has no motion sensors, and its status structures
+// carry no motion fields, so games cannot receive motion for that type
 private val MotionControllerTypes = setOf(
     NativeInput.EmulatedControllerType.VPAD,
-    NativeInput.EmulatedControllerType.PRO,
     NativeInput.EmulatedControllerType.WIIMOTE,
 )
 
@@ -51,9 +52,9 @@ fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val vibrator = remember { context.getDeviceVibrator() }
-
-    var deviceControllerIndices by remember {
-        mutableStateOf(NativeInput.getDeviceControllerIndices().toSet())
+    var deviceControllerIndex by remember { mutableIntStateOf(NativeInput.getDeviceControllerIndex()) }
+    val deviceControllerType = remember(deviceControllerIndex) {
+        NativeInput.getControllerType(deviceControllerIndex)
     }
 
     val appSettings by AppSettingsStore.dataStore.data.collectAsState(initial = null)
@@ -63,30 +64,19 @@ fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
         appBarText = tr("Device settings"),
         navigateBack = navigateBack,
     ) {
-        Text(
-            text = tr("Use this device's motion sensors and vibrator for the selected controller ports"),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(8.dp),
+        SingleSelection(
+            label = tr("Device controller"),
+            initialChoice = { NativeInput.getDeviceControllerIndex() },
+            choices = ControllerIndexChoices,
+            isChoiceEnabled = { !NativeInput.isControllerDisabled(it) },
+            choiceToString = { tr("Controller {0}", it + 1) },
+            onChoiceChanged = {
+                deviceControllerIndex = it
+                NativeInput.setDeviceControllerIndex(it)
+            }
         )
 
-        ControllerIndexChoices.forEach { index ->
-            Toggle(
-                label = tr("Controller {0}", index + 1),
-                checked = index in deviceControllerIndices,
-                enabled = !NativeInput.isControllerDisabled(index),
-                description = controllerTypeToString(NativeInput.getControllerType(index)),
-                onCheckedChanged = { enabled ->
-                    NativeInput.setDeviceControllerEnabled(index, enabled)
-                    deviceControllerIndices = NativeInput.getDeviceControllerIndices().toSet()
-                },
-            )
-        }
-
-        val hasPortWithoutMotionSupport = deviceControllerIndices.any {
-            NativeInput.getControllerType(it) !in MotionControllerTypes
-        }
-
-        if (hasPortWithoutMotionSupport) {
+        if (deviceControllerType !in MotionControllerTypes) {
             Row(
                 modifier = Modifier.padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -99,7 +89,7 @@ fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = tr("To use motion input, the controller type must be set to Wii U GamePad, Wii U Pro Controller or Wiimote"),
+                    text = tr("To use motion input, the controller type must be set to Wii U GamePad or Wiimote"),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
