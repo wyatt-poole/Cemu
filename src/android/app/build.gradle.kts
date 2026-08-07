@@ -70,6 +70,17 @@ android {
     val keystoreFilePath: String? = System.getenv("ANDROID_STORE_FILE")
 
     signingConfigs {
+        // Checked-in key so every build signs identically. Without it each build
+        // machine generates its own debug key, which makes released APKs
+        // impossible to install over each other. The password is the well known
+        // Android debug one, so this is not a secret.
+        getByName("debug") {
+            storeFile = file("cemu-motion.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+
         if (keystoreFilePath != null) {
             create("release") {
                 storeFile = file(keystoreFilePath)
