@@ -54,6 +54,26 @@
                 <data android:pathPattern=".*\\.elf" />
                 <data android:pathPattern=".*\\.rpx" />
             </intent-filter>
+
+            <!-- Frontends and file managers commonly launch games with a file
+                 path instead of a content uri -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.wud" />
+                <data android:pathPattern=".*\\.wux" />
+                <data android:pathPattern=".*\\.wua" />
+                <data android:pathPattern=".*\\.wuhb" />
+                <data android:pathPattern=".*\\.iso" />
+                <data android:pathPattern=".*\\.elf" />
+                <data android:pathPattern=".*\\.rpx" />
+            </intent-filter>
         </activity>
 
         <provider

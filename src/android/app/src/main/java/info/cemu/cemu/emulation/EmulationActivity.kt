@@ -103,7 +103,13 @@ class EmulationActivity : AppCompatActivity() {
         }
 
         if (launchPath == null && data != null) {
-            launchPath = data.toString()
+            // Frontends and file managers may pass a file uri, whose string form
+            // the emulator cannot open. Use the plain path in that case.
+            launchPath = if (data.scheme.equals("file", ignoreCase = true)) {
+                data.path ?: data.toString()
+            } else {
+                data.toString()
+            }
         }
 
         if (launchPath == null) {
