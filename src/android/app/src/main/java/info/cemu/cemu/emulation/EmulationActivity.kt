@@ -14,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import info.cemu.cemu.BuildConfig
+import info.cemu.cemu.common.android.display.DisplayUtils
 import info.cemu.cemu.common.android.inputevent.isFromPhysicalController
 import info.cemu.cemu.common.settings.AppSettingsStore
 import info.cemu.cemu.common.ui.components.ActivityContent
@@ -115,6 +116,8 @@ class EmulationActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        EmulationSessionState.onSessionStarted(this)
+        DisplayUtils.init(this)
         inputManager = InputDelegateManager(this)
 
         setupHotkeys()
@@ -151,6 +154,11 @@ class EmulationActivity : AppCompatActivity() {
         inputManager.onResume(display.rotation)
     }
 
+    override fun onDestroy() {
+        EmulationSessionState.onSessionStopped(this)
+        super.onDestroy()
+    }
+
     private fun setupHotkeys() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -170,6 +178,7 @@ class EmulationActivity : AppCompatActivity() {
     }
 
     private fun onQuit() {
+        EmulationSessionState.syncSavesToCustomRoot(this)
         finish()
         exitProcess(0)
     }
