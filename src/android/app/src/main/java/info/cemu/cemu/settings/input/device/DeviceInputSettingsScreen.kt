@@ -10,9 +10,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,13 +23,22 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import info.cemu.cemu.R
 import info.cemu.cemu.common.android.context.getDeviceVibrator
+import info.cemu.cemu.common.settings.AppSettingsStore
 import info.cemu.cemu.common.ui.components.ScreenContent
-import info.cemu.cemu.common.ui.components.SingleSelection
 import info.cemu.cemu.common.ui.components.Slider
+import info.cemu.cemu.common.ui.components.Toggle
+import info.cemu.cemu.common.ui.localization.controllerTypeToString
 import info.cemu.cemu.common.ui.localization.tr
 import info.cemu.cemu.nativeinterface.NativeInput
+import kotlinx.coroutines.launch
 
 private val ControllerIndexChoices = (0..<NativeInput.MAX_CONTROLLERS).toList()
+
+private val MotionControllerTypes = setOf(
+    NativeInput.EmulatedControllerType.VPAD,
+    NativeInput.EmulatedControllerType.PRO,
+    NativeInput.EmulatedControllerType.WIIMOTE,
+)
 
 @Composable
 fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
@@ -38,34 +49,44 @@ fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
     }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val vibrator = remember { context.getDeviceVibrator() }
-    var deviceControllerIndex by remember { mutableIntStateOf(NativeInput.getDeviceControllerIndex()) }
-    val deviceControllerType = remember(deviceControllerIndex) {
-        NativeInput.getControllerType(deviceControllerIndex)
+
+    var deviceControllerIndices by remember {
+        mutableStateOf(NativeInput.getDeviceControllerIndices().toSet())
     }
+
+    val appSettings by AppSettingsStore.dataStore.data.collectAsState(initial = null)
+    val isMotionEnabled = appSettings?.emulationSettings?.isMotionEnabled ?: false
 
     ScreenContent(
         appBarText = tr("Device settings"),
         navigateBack = navigateBack,
     ) {
-        SingleSelection(
-            label = tr("Device controller"),
-            initialChoice = { NativeInput.getDeviceControllerIndex() },
-            choices = ControllerIndexChoices,
-            isChoiceEnabled = { !NativeInput.isControllerDisabled(it) },
-            choiceToString = { tr("Controller {0}", it + 1) },
-            onChoiceChanged = {
-                deviceControllerIndex = it
-                NativeInput.setDeviceControllerIndex(it)
-            }
+        Text(
+            text = tr("Use this device's motion sensors and vibrator for the selected controller ports"),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(8.dp),
         )
 
-        val deviceControllerTypeSupportsMotion =
-            deviceControllerType == NativeInput.EmulatedControllerType.VPAD
-                    || deviceControllerType == NativeInput.EmulatedControllerType.PRO
-                    || deviceControllerType == NativeInput.EmulatedControllerType.WIIMOTE
+        ControllerIndexChoices.forEach { index ->
+            Toggle(
+                label = tr("Controller {0}", index + 1),
+                checked = index in deviceControllerIndices,
+                enabled = !NativeInput.isControllerDisabled(index),
+                description = controllerTypeToString(NativeInput.getControllerType(index)),
+                onCheckedChanged = { enabled ->
+                    NativeInput.setDeviceControllerEnabled(index, enabled)
+                    deviceControllerIndices = NativeInput.getDeviceControllerIndices().toSet()
+                },
+            )
+        }
 
-        if (!deviceControllerTypeSupportsMotion) {
+        val hasPortWithoutMotionSupport = deviceControllerIndices.any {
+            NativeInput.getControllerType(it) !in MotionControllerTypes
+        }
+
+        if (hasPortWithoutMotionSupport) {
             Row(
                 modifier = Modifier.padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -83,6 +104,19 @@ fun DeviceInputSettingsScreen(navigateBack: () -> Unit) {
                 )
             }
         }
+
+        Toggle(
+            label = tr("Enable motion"),
+            checked = isMotionEnabled,
+            description = tr("Use the device motion sensors for motion input. Can also be toggled from the in-game menu"),
+            onCheckedChanged = { enabled ->
+                scope.launch {
+                    AppSettingsStore.dataStore.updateData {
+                        it.copy(emulationSettings = it.emulationSettings.copy(isMotionEnabled = enabled))
+                    }
+                }
+            },
+        )
 
         Slider(
             label = tr("Rumble"),

@@ -247,10 +247,10 @@ object NativeInput {
     external fun getDeviceRumble(): Float
 
     @JvmStatic
-    external fun setDeviceControllerIndex(index: Int)
+    external fun setDeviceControllerEnabled(index: Int, enabled: Boolean)
 
     @JvmStatic
-    external fun getDeviceControllerIndex(): Int
+    external fun getDeviceControllerIndices(): IntArray
 
     @JvmStatic
     external fun onOverlayButton(controllerIndex: Int, mappingId: Int, value: Boolean)
