@@ -22,8 +22,12 @@ bool DeviceController::has_rumble()
 
 bool DeviceController::has_motion()
 {
-	std::scoped_lock lock{s_mutex};
-	return s_has_motion;
+	// This reports the capability, not whether samples are currently being
+	// delivered. The input profile only persists the motion setting of
+	// controllers that report motion, so returning the streaming state here
+	// dropped the setting whenever inputs were saved while emulation was not
+	// running, which left motion permanently disabled.
+	return true;
 }
 
 MotionSample DeviceController::get_motion_sample()
@@ -93,4 +97,9 @@ void DeviceController::set_motion_enabled(bool enabled)
 {
 	std::scoped_lock lock{s_mutex};
 	s_has_motion = enabled;
+
+	// Drop the delta accumulated while motion was off, so re-enabling does not
+	// integrate one huge time step into the orientation
+	if (enabled)
+		s_last_motion_timestamp = {};
 }

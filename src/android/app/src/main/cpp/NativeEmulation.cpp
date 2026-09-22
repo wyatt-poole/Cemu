@@ -81,6 +81,9 @@ namespace NativeEmulation
 			{
 				if (controller->api() == InputAPI::Device)
 				{
+					// Profiles written while motion was reported as unavailable lost
+					// the motion setting, which leaves device motion off for good
+					controller->set_use_motion(true);
 					return;
 				}
 			}
